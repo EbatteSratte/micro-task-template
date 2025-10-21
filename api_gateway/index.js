@@ -26,33 +26,21 @@ const circuitOptions = {
 
 // Create circuit breakers for each service
 const usersCircuit = new CircuitBreaker(async (url, options = {}) => {
-    try {
-        const response = await axios({
-            url, ...options,
-            validateStatus: status => (status >= 200 && status < 300) || status === 404
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.status === 404) {
-            return error.response.data;
-        }
-        throw error;
-    }
+    const response = await axios({
+        url, 
+        ...options,
+        validateStatus: () => true
+    });
+    return { data: response.data, status: response.status };
 }, circuitOptions);
 
 const ordersCircuit = new CircuitBreaker(async (url, options = {}) => {
-    try {
-        const response = await axios({
-            url, ...options,
-            validateStatus: status => (status >= 200 && status < 300) || status === 404
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.status === 404) {
-            return error.response.data;
-        }
-        throw error;
-    }
+    const response = await axios({
+        url, 
+        ...options,
+        validateStatus: () => true
+    });
+    return { data: response.data, status: response.status };
 }, circuitOptions);
 
 // Fallback functions
@@ -62,12 +50,8 @@ ordersCircuit.fallback(() => ({error: 'Orders service temporarily unavailable'})
 // Routes with Circuit Breaker
 app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
-        const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`);
-        if (user.error === 'User not found') {
-            res.status(404).json(user);
-        } else {
-            res.json(user);
-        }
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -75,11 +59,11 @@ app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
 
 app.post(`${API_VERSION}/users`, async (req, res) => {
     try {
-        const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`, {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`, {
             method: 'POST',
             data: req.body
         });
-        res.status(201).json(user);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -87,8 +71,8 @@ app.post(`${API_VERSION}/users`, async (req, res) => {
 
 app.get(`${API_VERSION}/users`, async (req, res) => {
     try {
-        const users = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`);
-        res.json(users);
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -99,7 +83,7 @@ app.delete(`${API_VERSION}/users/:userId`, async (req, res) => {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'DELETE'
         });
-        res.json(result);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -107,11 +91,11 @@ app.delete(`${API_VERSION}/users/:userId`, async (req, res) => {
 
 app.put(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
-        const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'PUT',
             data: req.body
         });
-        res.json(user);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
