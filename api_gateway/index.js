@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 8000;
 app.use(cors());
 app.use(express.json());
 
+// API Version
+const API_VERSION = '/api/v1';
+
 // Service URLs
 const USERS_SERVICE_URL = 'http://service_users:8000';
 const ORDERS_SERVICE_URL = 'http://service_orders:8000';
@@ -57,7 +60,7 @@ usersCircuit.fallback(() => ({error: 'Users service temporarily unavailable'}));
 ordersCircuit.fallback(() => ({error: 'Orders service temporarily unavailable'}));
 
 // Routes with Circuit Breaker
-app.get('/users/:userId', async (req, res) => {
+app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
         const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`);
         if (user.error === 'User not found') {
@@ -70,7 +73,7 @@ app.get('/users/:userId', async (req, res) => {
     }
 });
 
-app.post('/users', async (req, res) => {
+app.post(`${API_VERSION}/users`, async (req, res) => {
     try {
         const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`, {
             method: 'POST',
@@ -82,7 +85,7 @@ app.post('/users', async (req, res) => {
     }
 });
 
-app.get('/users', async (req, res) => {
+app.get(`${API_VERSION}/users`, async (req, res) => {
     try {
         const users = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`);
         res.json(users);
@@ -91,7 +94,7 @@ app.get('/users', async (req, res) => {
     }
 });
 
-app.delete('/users/:userId', async (req, res) => {
+app.delete(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'DELETE'
@@ -102,7 +105,7 @@ app.delete('/users/:userId', async (req, res) => {
     }
 });
 
-app.put('/users/:userId', async (req, res) => {
+app.put(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
         const user = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'PUT',
@@ -114,7 +117,7 @@ app.put('/users/:userId', async (req, res) => {
     }
 });
 
-app.get('/orders/:orderId', async (req, res) => {
+app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);
         if (order.error === 'Order not found') {
@@ -127,7 +130,7 @@ app.get('/orders/:orderId', async (req, res) => {
     }
 });
 
-app.post('/orders', async (req, res) => {
+app.post(`${API_VERSION}/orders`, async (req, res) => {
     try {
         const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`, {
             method: 'POST',
@@ -139,7 +142,7 @@ app.post('/orders', async (req, res) => {
     }
 });
 
-app.get('/orders', async (req, res) => {
+app.get(`${API_VERSION}/orders`, async (req, res) => {
     try {
         const orders = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`);
         res.json(orders);
@@ -148,7 +151,7 @@ app.get('/orders', async (req, res) => {
     }
 });
 
-app.delete('/orders/:orderId', async (req, res) => {
+app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'DELETE'
@@ -159,7 +162,7 @@ app.delete('/orders/:orderId', async (req, res) => {
     }
 });
 
-app.put('/orders/:orderId', async (req, res) => {
+app.put(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'PUT',
@@ -171,7 +174,7 @@ app.put('/orders/:orderId', async (req, res) => {
     }
 });
 
-app.get('/orders/status', async (req, res) => {
+app.get(`${API_VERSION}/orders/status`, async (req, res) => {
     try {
         const status = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/status`);
         res.json(status);
@@ -180,7 +183,7 @@ app.get('/orders/status', async (req, res) => {
     }
 });
 
-app.get('/orders/health', async (req, res) => {
+app.get(`${API_VERSION}/orders/health`, async (req, res) => {
     try {
         const health = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/health`);
         res.json(health);
@@ -190,7 +193,7 @@ app.get('/orders/health', async (req, res) => {
 });
 
 // Gateway Aggregation: Get user details with their orders
-app.get('/users/:userId/details', async (req, res) => {
+app.get(`${API_VERSION}/users/:userId/details`, async (req, res) => {
     try {
         const userId = req.params.userId;
 
@@ -220,7 +223,7 @@ app.get('/users/:userId/details', async (req, res) => {
 });
 
 // Health check endpoint that shows circuit breaker status
-app.get('/health', (req, res) => {
+app.get(`${API_VERSION}/health`, (req, res) => {
     res.json({
         status: 'API Gateway is running',
         circuits: {
@@ -236,7 +239,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.get('/status', (req, res) => {
+app.get(`${API_VERSION}/status`, (req, res) => {
     res.json({status: 'API Gateway is running'});
 });
 
