@@ -22,7 +22,7 @@ const createUserSchema = z.object({
     password: z.string().min(1, 'Password is required').optional(),
     passwordHash: z.string().min(1, 'Password is required').optional(),
     name: z.string().min(1, 'Name is required'),
-    role: RoleEnum.default(ROLES.CUSTOMER)
+    roles: z.array(RoleEnum).default([ROLES.CUSTOMER])
 }).refine(data => data.password || data.passwordHash, {
     message: 'Either password or passwordHash is required',
     path: ['password']
@@ -33,7 +33,7 @@ const updateUserSchema = z.object({
     password: z.string().min(1).optional(),
     passwordHash: z.string().min(1).optional(),
     name: z.string().min(1, 'Name cannot be empty').optional(),
-    role: RoleEnum.optional()
+    roles: z.array(RoleEnum).optional()
 });
 
 let fakeUsersDb = {};
@@ -48,7 +48,7 @@ function createUserModel(userData) {
         email: userData.email,
         passwordHash: userData.passwordHash || userData.password,
         name: userData.name,
-        role: userData.role || ROLES.CUSTOMER,
+        roles: userData.roles || [ROLES.CUSTOMER],
         createdAt: now,
         updatedAt: now
     };
@@ -62,7 +62,7 @@ function updateUserModel(existingUser, updates) {
         email: updates.email !== undefined ? updates.email : existingUser.email,
         passwordHash: updates.passwordHash !== undefined ? updates.passwordHash : existingUser.passwordHash,
         name: updates.name !== undefined ? updates.name : existingUser.name,
-        role: updates.role !== undefined ? updates.role : existingUser.role,
+        roles: updates.roles !== undefined ? updates.roles : existingUser.roles,
         updatedAt: now
     };
 }
