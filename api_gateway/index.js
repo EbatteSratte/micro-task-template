@@ -101,6 +101,30 @@ app.put(`${API_VERSION}/users/:userId`, async (req, res) => {
     }
 });
 
+app.post(`${API_VERSION}/users/register`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/register`, {
+            method: 'POST',
+            data: req.body
+        });
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.post(`${API_VERSION}/users/login`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/login`, {
+            method: 'POST',
+            data: req.body
+        });
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);
