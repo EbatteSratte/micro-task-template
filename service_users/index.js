@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const { z } = require('zod');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 // Middleware
 app.use(cors());
@@ -35,6 +37,17 @@ const updateUserSchema = z.object({
     passwordHash: z.string().min(1).optional(),
     name: z.string().min(1, 'Name cannot be empty').optional(),
     roles: z.array(RoleEnum).optional()
+});
+
+const registerSchema = z.object({
+    email: z.string().email('Invalid email format'),
+    password: z.string().min(1, 'Password is required'),
+    name: z.string().min(1, 'Name is required')
+});
+
+const loginSchema = z.object({
+    email: z.string().email('Invalid email format'),
+    password: z.string().min(1, 'Password is required')
 });
 
 let fakeUsersDb = {};
@@ -73,7 +86,79 @@ function sanitizeUser(user) {
     return safeUser;
 }
 
-// Routes
+function generateJwtForUser(user) {
+    const payload = { id: user.id, roles: user.roles };
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+}
+
+app.post('/users/register', (req, res) => {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Validation failed',
+                details: parsed.error.errors.map(err => ({ field: err.path.join('.'), message: err.message }))
+            }
+        });
+    }
+
+    const { email, password, name } = parsed.data;
+
+    const exists = Object.values(fakeUsersDb).find(u => u.email === email);
+    if (exists) {
+        return res.status(409).json({
+            success: false,
+            error: { message: 'User with this email already exists' }
+        });
+    }
+
+    const newUser = createUserModel({ email, password, name, roles: [ROLES.CUSTOMER] });
+    fakeUsersDb[newUser.id] = newUser;
+
+    const token = generateJwtForUser(newUser);
+
+    return res.status(201).json({
+        success: true,
+        data: {
+            token,
+            user: sanitizeUser(newUser)
+        }
+    });
+});
+
+app.post('/users/login', (req, res) => {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Validation failed',
+                details: parsed.error.errors.map(err => ({ field: err.path.join('.'), message: err.message }))
+            }
+        });
+    }
+
+    const { email, password } = parsed.data;
+    const user = Object.values(fakeUsersDb).find(u => u.email === email);
+
+    if (!user || user.passwordHash !== password) {
+        return res.status(401).json({
+            success: false,
+            error: { message: 'Invalid email or password' }
+        });
+    }
+
+    const token = generateJwtForUser(user);
+    return res.json({
+        success: true,
+        data: {
+            token,
+            user: sanitizeUser(user)
+        }
+    });
+});
+
 app.get('/users', (req, res) => {
     const users = Object.values(fakeUsersDb).map(sanitizeUser);
     res.json(users);
