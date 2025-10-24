@@ -12,10 +12,11 @@ app.use(express.json());
 const ROLES = {
     CUSTOMER: 'Customer',
     ENGINEER: 'Engineer',
-    MANAGER: 'Manager'
+    MANAGER: 'Manager',
+    ADMIN: 'Admin'
 };
 
-const RoleEnum = z.enum(['Customer', 'Engineer', 'Manager']);
+const RoleEnum = z.enum(['Customer', 'Engineer', 'Manager', 'Admin']);
 
 const createUserSchema = z.object({
     email: z.string().email('Invalid email format'),
