@@ -50,6 +50,11 @@ const loginSchema = z.object({
     password: z.string().min(1, 'Password is required')
 });
 
+const updateProfileSchema = z.object({
+    email: z.string().email('Invalid email format').optional(),
+    name: z.string().min(1, 'Name cannot be empty').optional()
+});
+
 let fakeUsersDb = {};
 let currentId = 1;
 
@@ -175,6 +180,63 @@ app.get('/users/profile/:userId', (req, res) => {
         success: true,
         data: { 
             user: sanitizeUser(user) 
+        }
+    });
+});
+
+app.put('/users/profile/:userId', (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const user = fakeUsersDb[userId];
+    
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            error: { message: 'User not found' }
+        });
+    }
+    
+    const validation = updateProfileSchema.safeParse(req.body);
+    
+    if (!validation.success) {
+        return res.status(400).json({
+            success: false,
+            error: {
+                message: 'Validation failed',
+                details: validation.error.errors.map(err => ({
+                    field: err.path.join('.'),
+                    message: err.message
+                }))
+            }
+        });
+    }
+    
+    const updates = validation.data;
+    
+    if (updates.email) {
+        const existingUser = Object.values(fakeUsersDb).find(
+            u => u.email === updates.email && u.id !== userId
+        );
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                error: { message: 'User with this email already exists' }
+            });
+        }
+    }
+    
+    const updatedUser = {
+        ...user,
+        email: updates.email !== undefined ? updates.email : user.email,
+        name: updates.name !== undefined ? updates.name : user.name,
+        updatedAt: new Date().toISOString()
+    };
+    
+    fakeUsersDb[userId] = updatedUser;
+    
+    res.json({
+        success: true,
+        data: {
+            user: sanitizeUser(updatedUser)
         }
     });
 });
