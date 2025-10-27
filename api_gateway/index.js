@@ -2,9 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const CircuitBreaker = require('opossum');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 // Middleware
 app.use(cors());
@@ -48,6 +50,35 @@ usersCircuit.fallback(() => ({error: 'Users service temporarily unavailable'}));
 ordersCircuit.fallback(() => ({error: 'Orders service temporarily unavailable'}));
 
 // Routes with Circuit Breaker
+app.get(`${API_VERSION}/users/profile`, async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Access token is missing or invalid' }
+            });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (jwtError) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Invalid or expired token' }
+            });
+        }
+
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/profile/${decoded.id}`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`);
