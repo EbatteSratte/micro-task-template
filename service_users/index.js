@@ -159,6 +159,26 @@ app.post('/users/login', (req, res) => {
     });
 });
 
+app.get('/users/profile/:userId', (req, res) => {
+    const userId = parseInt(req.params.userId);
+    
+    const user = fakeUsersDb[userId];
+    
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            error: { message: 'User not found' }
+        });
+    }
+    
+    res.json({
+        success: true,
+        data: { 
+            user: sanitizeUser(user) 
+        }
+    });
+});
+
 app.get('/users', (req, res) => {
     const users = Object.values(fakeUsersDb).map(sanitizeUser);
     res.json(users);
