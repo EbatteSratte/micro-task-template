@@ -101,6 +101,37 @@ function authenticateJWT(req, res, next) {
     }
 }
 
+function requireRoles(allowedRoles) {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Authentication required' }
+            });
+        }
+
+        if (!req.user.roles || !Array.isArray(req.user.roles)) {
+            return res.status(403).json({
+                success: false,
+                error: { message: 'User roles not found' }
+            });
+        }
+
+        const hasPermission = allowedRoles.some(role => req.user.roles.includes(role));
+
+        if (!hasPermission) {
+            return res.status(403).json({
+                success: false,
+                error: { 
+                    message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
+                }
+            });
+        }
+
+        next();
+    };
+}
+
 app.get(`${API_VERSION}/users/profile`, authenticateJWT, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/profile/${req.user.id}`);
@@ -131,7 +162,7 @@ app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/users`, async (req, res) => {
+app.post(`${API_VERSION}/users`, authenticateJWT, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`, {
             method: 'POST',
@@ -143,7 +174,7 @@ app.post(`${API_VERSION}/users`, async (req, res) => {
     }
 });
 
-app.get(`${API_VERSION}/users`, async (req, res) => {
+app.get(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`);
         res.status(result.status).json(result.data);
