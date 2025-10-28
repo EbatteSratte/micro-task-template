@@ -12,7 +12,9 @@
     "cors": "^2.8.5",
     "axios": "^1.5.0",
     "opossum": "^7.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^8.15.0",
+    "pino-pretty": "^10.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

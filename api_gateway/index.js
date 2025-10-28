@@ -3,6 +3,11 @@ const cors = require('cors');
 const axios = require('axios');
 const CircuitBreaker = require('opossum');
 const jwt = require('jsonwebtoken');
+const pino = require('pino');
+
+const logger = pino({
+    level: process.env.LOG_LEVEL || 'info'
+});
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -11,6 +16,30 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+app.use((req, res, next) => {
+    const startTime = Date.now();
+    
+    res.on('finish', () => {
+        const duration = (Date.now() - startTime) / 1000;
+        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, -5);
+        const remoteAddr = req.ip || req.connection.remoteAddress || '-';
+        const remoteUser = req.user ? req.user.id : '-';
+        const request = `${req.method} ${req.originalUrl} HTTP/${req.httpVersion}`;
+        const status = res.statusCode;
+        const bodyBytesSent = res.get('content-length') || '-';
+        const httpReferer = req.headers.referer || '-';
+        const httpUserAgent = req.headers['user-agent'] || '-';
+        const requestTime = duration.toFixed(3);
+        
+        // Format: $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_time
+        const logLine = `${remoteAddr} - ${remoteUser} [${timestamp}] "${request}" ${status} ${bodyBytesSent} "${httpReferer}" "${httpUserAgent}" ${requestTime}`;
+        
+        console.log(logLine);
+    });
+    
+    next();
+});
 
 // API Version
 const API_VERSION = '/api/v1';
@@ -298,14 +327,14 @@ app.get(`${API_VERSION}/status`, (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`API Gateway running on port ${PORT}`);
+    logger.info(`API Gateway running on port ${PORT}`);
 
     // Log circuit breaker events for monitoring
-    usersCircuit.on('open', () => console.log('Users circuit breaker opened'));
-    usersCircuit.on('close', () => console.log('Users circuit breaker closed'));
-    usersCircuit.on('halfOpen', () => console.log('Users circuit breaker half-open'));
+    usersCircuit.on('open', () => logger.warn('Users circuit breaker opened'));
+    usersCircuit.on('close', () => logger.info('Users circuit breaker closed'));
+    usersCircuit.on('halfOpen', () => logger.info('Users circuit breaker half-open'));
 
-    ordersCircuit.on('open', () => console.log('Orders circuit breaker opened'));
-    ordersCircuit.on('close', () => console.log('Orders circuit breaker closed'));
-    ordersCircuit.on('halfOpen', () => console.log('Orders circuit breaker half-open'));
+    ordersCircuit.on('open', () => logger.warn('Orders circuit breaker opened'));
+    ordersCircuit.on('close', () => logger.info('Orders circuit breaker closed'));
+    ordersCircuit.on('halfOpen', () => logger.info('Orders circuit breaker half-open'));
 });
