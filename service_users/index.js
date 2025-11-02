@@ -242,8 +242,92 @@ app.put('/users/profile/:userId', (req, res) => {
 });
 
 app.get('/users', (req, res) => {
-    const users = Object.values(fakeUsersDb).map(sanitizeUser);
-    res.json(users);
+    try {
+        const {
+            page = 1,
+            limit = 10,
+            role,
+            email,
+            name,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        let users = Object.values(fakeUsersDb);
+
+        if (role) {
+            users = users.filter(user => user.roles && user.roles.includes(role));
+        }
+
+        if (email) {
+            users = users.filter(user => 
+                user.email.toLowerCase().includes(email.toLowerCase())
+            );
+        }
+
+        if (name) {
+            users = users.filter(user => 
+                user.name.toLowerCase().includes(name.toLowerCase())
+            );
+        }
+
+        users.sort((a, b) => {
+            let aValue = a[sortBy];
+            let bValue = b[sortBy];
+
+            if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+                aValue = new Date(aValue);
+                bValue = new Date(bValue);
+            }
+
+            if (typeof aValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            }
+
+            if (sortOrder === 'desc') {
+                return bValue > aValue ? 1 : bValue < aValue ? -1 : 0;
+            } else {
+                return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+            }
+        });
+
+        const pageNum = Math.max(1, parseInt(page, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+        const startIndex = (pageNum - 1) * limitNum;
+        const endIndex = startIndex + limitNum;
+
+        const totalUsers = users.length;
+        const totalPages = Math.ceil(totalUsers / limitNum);
+        const paginatedUsers = users.slice(startIndex, endIndex);
+
+        const sanitizedUsers = paginatedUsers.map(sanitizeUser);
+
+        res.json({
+            success: true,
+            users: sanitizedUsers,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total: totalUsers,
+                totalPages
+            },
+            filters: {
+                role: role || null,
+                email: email || null,
+                name: name || null
+            },
+            sorting: {
+                sortBy,
+                sortOrder
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
 });
 
 app.post('/users', (req, res) => {

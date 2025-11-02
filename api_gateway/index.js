@@ -176,10 +176,71 @@ app.post(`${API_VERSION}/users`, authenticateJWT, async (req, res) => {
 
 app.get(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
     try {
-        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`);
-        res.status(result.status).json(result.data);
+        const {
+            page = 1,
+            limit = 10,
+            role,
+            email,
+            name,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const pageNum = Math.max(1, parseInt(page, 10));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+
+        const queryParams = new URLSearchParams({
+            page: pageNum.toString(),
+            limit: limitNum.toString(),
+            sortBy,
+            sortOrder
+        });
+
+        if (role) queryParams.append('role', role);
+        if (email) queryParams.append('email', email);
+        if (name) queryParams.append('name', name);
+
+        const url = `${USERS_SERVICE_URL}/users?${queryParams.toString()}`;
+        
+        logger.info({ 
+            adminId: req.user.id,
+            filters: { role, email, name },
+            pagination: { page: pageNum, limit: limitNum },
+            sorting: { sortBy, sortOrder }
+        }, 'Admin fetching users list with filters');
+
+        const result = await usersCircuit.fire(url);
+        
+        if (result.status === 200 && result.data) {
+            const response = {
+                success: true,
+                data: result.data.users || result.data,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total: result.data.total || (result.data.users ? result.data.users.length : 0),
+                    totalPages: result.data.totalPages || Math.ceil((result.data.total || 0) / limitNum)
+                },
+                filters: {
+                    role: role || null,
+                    email: email || null,
+                    name: name || null
+                },
+                sorting: {
+                    sortBy,
+                    sortOrder
+                }
+            };
+            
+            res.status(200).json(response);
+        } else {
+            res.status(result.status).json(result.data);
+        }
     } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
     }
 });
 
