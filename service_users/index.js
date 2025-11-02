@@ -58,9 +58,13 @@ const updateProfileSchema = z.object({
 let fakeUsersDb = {};
 let currentId = 1;
 
+function generateUserId() {
+    return currentId++;
+}
+
 function createUserModel(userData) {
     const now = new Date().toISOString();
-    const userId = currentId++;
+    const userId = generateUserId();
     
     return {
         id: userId,

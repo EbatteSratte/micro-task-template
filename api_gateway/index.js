@@ -267,6 +267,24 @@ app.put(`${API_VERSION}/users/:userId`, async (req, res) => {
     }
 });
 
+app.get(`${API_VERSION}/users/status`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/status`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.get(`${API_VERSION}/users/health`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/health`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.post(`${API_VERSION}/users/register`, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/register`, {
@@ -293,12 +311,8 @@ app.post(`${API_VERSION}/users/login`, async (req, res) => {
 
 app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
-        const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);
-        if (order.error === 'Order not found') {
-            res.status(404).json(order);
-        } else {
-            res.json(order);
-        }
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -306,11 +320,11 @@ app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
 
 app.post(`${API_VERSION}/orders`, async (req, res) => {
     try {
-        const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`, {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`, {
             method: 'POST',
             data: req.body
         });
-        res.status(201).json(order);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -318,8 +332,8 @@ app.post(`${API_VERSION}/orders`, async (req, res) => {
 
 app.get(`${API_VERSION}/orders`, async (req, res) => {
     try {
-        const orders = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`);
-        res.json(orders);
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -330,7 +344,7 @@ app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'DELETE'
         });
-        res.json(result);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -338,11 +352,11 @@ app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
 
 app.put(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
-        const order = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'PUT',
             data: req.body
         });
-        res.json(order);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -350,8 +364,8 @@ app.put(`${API_VERSION}/orders/:orderId`, async (req, res) => {
 
 app.get(`${API_VERSION}/orders/status`, async (req, res) => {
     try {
-        const status = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/status`);
-        res.json(status);
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/status`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -359,8 +373,8 @@ app.get(`${API_VERSION}/orders/status`, async (req, res) => {
 
 app.get(`${API_VERSION}/orders/health`, async (req, res) => {
     try {
-        const health = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/health`);
-        res.json(health);
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/health`);
+        res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
     }
@@ -375,20 +389,23 @@ app.get(`${API_VERSION}/users/:userId/details`, async (req, res) => {
         const userPromise = usersCircuit.fire(`${USERS_SERVICE_URL}/users/${userId}`);
 
         // Get user's orders (assuming orders have a userId field)
-        const ordersPromise = ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`)
-            .then(orders => orders.filter(order => order.userId == userId));
+        const ordersPromise = ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`);
 
         // Wait for both requests to complete
-        const [user, userOrders] = await Promise.all([userPromise, ordersPromise]);
+        const [userResult, ordersResult] = await Promise.all([userPromise, ordersPromise]);
 
         // If user not found, return 404
-        if (user.error === 'User not found') {
-            return res.status(404).json(user);
+        if (userResult.status === 404) {
+            return res.status(404).json(userResult.data);
         }
+
+        // Filter orders for this user
+        const userOrders = ordersResult.data.data ? 
+            ordersResult.data.data.filter(order => order.userId == userId) : [];
 
         // Return aggregated response
         res.json({
-            user,
+            user: userResult.data,
             orders: userOrders
         });
     } catch (error) {
