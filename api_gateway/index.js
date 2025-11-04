@@ -369,6 +369,29 @@ app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     }
 });
 
+app.patch(`${API_VERSION}/orders/:orderId/status`, async (req, res) => {
+    try {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/status`, {
+            method: 'PATCH',
+            data: req.body
+        });
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.patch(`${API_VERSION}/orders/:orderId/cancel`, async (req, res) => {
+    try {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/cancel`, {
+            method: 'PATCH'
+        });
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.put(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {

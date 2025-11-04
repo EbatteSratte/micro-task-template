@@ -332,6 +332,97 @@ app.delete('/orders/:orderId', (req, res) => {
     }
 });
 
+app.patch('/orders/:orderId/status', (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+        const order = fakeOrdersDb[orderId];
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        const { status } = req.body;
+        
+        const validStatuses = ['created', 'in_progress', 'completed', 'cancelled'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+            });
+        }
+
+        // Update order status
+        const updatedOrder = {
+            ...order,
+            status: status,
+            updatedAt: new Date().toISOString()
+        };
+        
+        fakeOrdersDb[orderId] = updatedOrder;
+        
+        res.json({
+            success: true,
+            data: updatedOrder,
+            message: `Order status updated to '${status}'`
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+app.patch('/orders/:orderId/cancel', (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+        const order = fakeOrdersDb[orderId];
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        if (order.status === 'cancelled') {
+            return res.status(400).json({
+                success: false,
+                error: 'Order is already cancelled'
+            });
+        }
+
+        if (order.status === 'completed') {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot cancel completed order'
+            });
+        }
+
+        const cancelledOrder = {
+            ...order,
+            status: ORDER_STATUS.CANCELLED,
+            updatedAt: new Date().toISOString()
+        };
+        
+        fakeOrdersDb[orderId] = cancelledOrder;
+        
+        res.json({
+            success: true,
+            data: cancelledOrder,
+            message: 'Order has been cancelled successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Orders service running on port ${PORT}`);
