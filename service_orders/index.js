@@ -85,6 +85,16 @@ function processOrderItems(items) {
     }));
 }
 
+async function checkUserExists(userId) {
+    try {
+        const response = await fetch(`http://service_users:8000/users/${userId}`);
+        return response.ok;
+    } catch (error) {
+        console.error('Error checking user existence:', error);
+        return true;
+    }
+}
+
 // Имитация базы данных в памяти (LocalStorage)
 let fakeOrdersDb = {};
 let currentId = 1;
@@ -150,7 +160,7 @@ app.get('/orders', (req, res) => {
     }
 });
 
-app.post('/orders', (req, res) => {
+app.post('/orders', async (req, res) => {
     try {
         const validation = createOrderSchema.safeParse(req.body);
         
@@ -166,6 +176,15 @@ app.post('/orders', (req, res) => {
         }
 
         const orderData = validation.data;
+        
+        const userExists = await checkUserExists(orderData.userId);
+        if (!userExists) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
         const newOrder = createOrderModel(orderData);
         
         fakeOrdersDb[newOrder.id] = newOrder;
