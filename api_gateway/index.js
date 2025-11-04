@@ -309,6 +309,25 @@ app.post(`${API_VERSION}/users/login`, async (req, res) => {
     }
 });
 
+app.get(`${API_VERSION}/orders/my`, authenticateJWT, async (req, res) => {
+    try {
+        const queryParams = new URLSearchParams();
+        if (req.query.page) queryParams.append('page', req.query.page);
+        if (req.query.limit) queryParams.append('limit', req.query.limit);
+        if (req.query.sortBy) queryParams.append('sortBy', req.query.sortBy);
+        if (req.query.sortOrder) queryParams.append('sortOrder', req.query.sortOrder);
+        if (req.query.status) queryParams.append('status', req.query.status);
+        
+        const queryString = queryParams.toString();
+        const url = `${ORDERS_SERVICE_URL}/orders/user/${req.user.id}${queryString ? '?' + queryString : ''}`;
+        
+        const result = await ordersCircuit.fire(url);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);

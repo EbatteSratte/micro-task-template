@@ -160,6 +160,68 @@ app.get('/orders', (req, res) => {
     }
 });
 
+app.get('/orders/user/:userId', (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        let orders = Object.values(fakeOrdersDb).filter(order => order.userId === userId);
+
+        if (req.query.status) {
+            orders = orders.filter(order => order.status === req.query.status);
+        }
+
+        const sortBy = req.query.sortBy || 'createdAt';
+        const sortOrder = req.query.sortOrder || 'desc';
+        
+        orders.sort((a, b) => {
+            let valueA = a[sortBy];
+            let valueB = b[sortBy];
+            
+            if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+                valueA = new Date(valueA);
+                valueB = new Date(valueB);
+            }
+            
+            if (sortOrder === 'asc') {
+                return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+            } else {
+                return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+            }
+        });
+
+        const pageNum = Math.max(1, parseInt(req.query.page) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+        const startIndex = (pageNum - 1) * limitNum;
+        const endIndex = startIndex + limitNum;
+
+        const totalOrders = orders.length;
+        const totalPages = Math.ceil(totalOrders / limitNum);
+        const paginatedOrders = orders.slice(startIndex, endIndex);
+
+        res.json({
+            success: true,
+            orders: paginatedOrders,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total: totalOrders,
+                totalPages
+            },
+            filters: {
+                status: req.query.status || null
+            },
+            sorting: {
+                sortBy,
+                sortOrder
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
 app.post('/orders', async (req, res) => {
     try {
         const validation = createOrderSchema.safeParse(req.body);
