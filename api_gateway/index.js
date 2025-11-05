@@ -153,7 +153,7 @@ app.put(`${API_VERSION}/users/profile`, authenticateJWT, async (req, res) => {
     }
 });
 
-app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
+app.get(`${API_VERSION}/users/:userId`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`);
         res.status(result.status).json(result.data);
@@ -162,7 +162,7 @@ app.get(`${API_VERSION}/users/:userId`, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/users`, authenticateJWT, async (req, res) => {
+app.post(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users`, {
             method: 'POST',
@@ -174,7 +174,7 @@ app.post(`${API_VERSION}/users`, authenticateJWT, async (req, res) => {
     }
 });
 
-app.get(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
+app.get(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const {
             page = 1,
@@ -244,7 +244,7 @@ app.get(`${API_VERSION}/users`, authenticateJWT, requireRoles(['Admin']), async 
     }
 });
 
-app.delete(`${API_VERSION}/users/:userId`, async (req, res) => {
+app.delete(`${API_VERSION}/users/:userId`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'DELETE'
@@ -255,7 +255,7 @@ app.delete(`${API_VERSION}/users/:userId`, async (req, res) => {
     }
 });
 
-app.put(`${API_VERSION}/users/:userId`, async (req, res) => {
+app.put(`${API_VERSION}/users/:userId`, authenticateJWT, requireRoles(['Admin']), async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/${req.params.userId}`, {
             method: 'PUT',
@@ -328,7 +328,7 @@ app.get(`${API_VERSION}/orders/my`, authenticateJWT, async (req, res) => {
     }
 });
 
-app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
+app.get(`${API_VERSION}/orders/:orderId`, authenticateJWT, requireRoles(['Engineer', 'Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`);
         res.status(result.status).json(result.data);
@@ -337,7 +337,7 @@ app.get(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/orders`, async (req, res) => {
+app.post(`${API_VERSION}/orders`, authenticateJWT, requireRoles(['Customer', 'Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`, {
             method: 'POST',
@@ -349,7 +349,7 @@ app.post(`${API_VERSION}/orders`, async (req, res) => {
     }
 });
 
-app.get(`${API_VERSION}/orders`, async (req, res) => {
+app.get(`${API_VERSION}/orders`, authenticateJWT, requireRoles(['Engineer', 'Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders`);
         res.status(result.status).json(result.data);
@@ -358,7 +358,7 @@ app.get(`${API_VERSION}/orders`, async (req, res) => {
     }
 });
 
-app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
+app.delete(`${API_VERSION}/orders/:orderId`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'DELETE'
@@ -369,7 +369,7 @@ app.delete(`${API_VERSION}/orders/:orderId`, async (req, res) => {
     }
 });
 
-app.patch(`${API_VERSION}/orders/:orderId/status`, async (req, res) => {
+app.patch(`${API_VERSION}/orders/:orderId/status`, authenticateJWT, requireRoles(['Engineer', 'Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/status`, {
             method: 'PATCH',
@@ -381,7 +381,7 @@ app.patch(`${API_VERSION}/orders/:orderId/status`, async (req, res) => {
     }
 });
 
-app.patch(`${API_VERSION}/orders/:orderId/cancel`, async (req, res) => {
+app.patch(`${API_VERSION}/orders/:orderId/cancel`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/cancel`, {
             method: 'PATCH'
@@ -392,7 +392,7 @@ app.patch(`${API_VERSION}/orders/:orderId/cancel`, async (req, res) => {
     }
 });
 
-app.put(`${API_VERSION}/orders/:orderId`, async (req, res) => {
+app.put(`${API_VERSION}/orders/:orderId`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}`, {
             method: 'PUT',
@@ -423,7 +423,7 @@ app.get(`${API_VERSION}/orders/health`, async (req, res) => {
 });
 
 // Gateway Aggregation: Get user details with their orders
-app.get(`${API_VERSION}/users/:userId/details`, async (req, res) => {
+app.get(`${API_VERSION}/users/:userId/details`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
         const userId = req.params.userId;
 
@@ -438,20 +438,29 @@ app.get(`${API_VERSION}/users/:userId/details`, async (req, res) => {
 
         // If user not found, return 404
         if (userResult.status === 404) {
-            return res.status(404).json(userResult.data);
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
         }
 
         // Filter orders for this user
         const userOrders = ordersResult.data.data ? 
             ordersResult.data.data.filter(order => order.userId == userId) : [];
 
-        // Return aggregated response
+        // Return aggregated response in standard format
         res.json({
-            user: userResult.data,
-            orders: userOrders
+            success: true,
+            data: {
+                user: userResult.data,
+                orders: userOrders
+            }
         });
     } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
     }
 });
 
