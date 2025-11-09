@@ -5,6 +5,8 @@ const CircuitBreaker = require('opossum');
 const jwt = require('jsonwebtoken');
 const pino = require('pino');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const { specs } = require('./swagger');
 
 const logger = pino({
     level: process.env.LOG_LEVEL || 'info'
@@ -65,6 +67,12 @@ app.use((req, res, next) => {
     
     next();
 });
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }'
+}));
 
 // API Version
 const API_VERSION = '/api/v1';
@@ -322,7 +330,7 @@ app.post(`${API_VERSION}/users/register`, authLimiter, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/users/login`, authLimiter,async (req, res) => {
+app.post(`${API_VERSION}/users/login`, authLimiter, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/login`, {
             method: 'POST',
