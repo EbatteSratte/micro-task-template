@@ -7,10 +7,24 @@ const pino = require('pino');
 const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const { specs } = require('./swagger');
+const { 
+    OrderCreatedEvent, 
+    OrderStatusUpdatedEvent, 
+    OrderCancelledEvent, 
+    EventPublisher, 
+    OrderEventHandlers 
+} = require('./domain-events');
 
 const logger = pino({
     level: process.env.LOG_LEVEL || 'info'
 });
+
+const eventPublisher = new EventPublisher(logger);
+const orderEventHandlers = new OrderEventHandlers(logger);
+
+eventPublisher.subscribe('order.created', orderEventHandlers.handleOrderCreated.bind(orderEventHandlers));
+eventPublisher.subscribe('order.status.updated', orderEventHandlers.handleOrderStatusUpdated.bind(orderEventHandlers));
+eventPublisher.subscribe('order.cancelled', orderEventHandlers.handleOrderCancelled.bind(orderEventHandlers));
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -376,6 +390,25 @@ app.post(`${API_VERSION}/orders`, authenticateJWT, requireRoles(['Customer', 'Ma
             method: 'POST',
             data: req.body
         });
+        
+        if (result.status === 201 && result.data && result.data.success) {
+            try {
+                const orderData = result.data.data || result.data;
+                const orderCreatedEvent = new OrderCreatedEvent({
+                    id: orderData.id,
+                    userId: req.user.id,
+                    items: orderData.items || req.body.items,
+                    totalAmount: orderData.totalAmount,
+                    status: orderData.status || 'pending',
+                    createdAt: orderData.createdAt || new Date().toISOString()
+                });
+                
+                await eventPublisher.publish(orderCreatedEvent);
+            } catch (eventError) {
+                logger.error('Failed to publish order created event:', eventError);
+            }
+        }
+        
         res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
@@ -404,10 +437,40 @@ app.delete(`${API_VERSION}/orders/:orderId`, authenticateJWT, requireRoles(['Man
 
 app.patch(`${API_VERSION}/orders/:orderId/status`, authenticateJWT, requireRoles(['Engineer', 'Manager', 'Admin']), async (req, res) => {
     try {
-        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/status`, {
+        const orderId = req.params.orderId;
+        const newStatus = req.body.status;
+        
+        let oldStatus = null;
+        try {
+            const currentOrderResult = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${orderId}`);
+            if (currentOrderResult.status === 200 && currentOrderResult.data) {
+                const orderData = currentOrderResult.data.data || currentOrderResult.data;
+                oldStatus = orderData.status;
+            }
+        } catch (error) {
+            logger.warn('Could not fetch current order status for event:', error.message);
+        }
+        
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${orderId}/status`, {
             method: 'PATCH',
             data: req.body
         });
+        
+        if (result.status === 200 && result.data && result.data.success) {
+            try {
+                const statusUpdatedEvent = new OrderStatusUpdatedEvent(
+                    orderId,
+                    oldStatus,
+                    newStatus,
+                    req.user.id
+                );
+                
+                await eventPublisher.publish(statusUpdatedEvent);
+            } catch (eventError) {
+                logger.error('Failed to publish order status updated event:', eventError);
+            }
+        }
+        
         res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
@@ -416,9 +479,26 @@ app.patch(`${API_VERSION}/orders/:orderId/status`, authenticateJWT, requireRoles
 
 app.patch(`${API_VERSION}/orders/:orderId/cancel`, authenticateJWT, requireRoles(['Manager', 'Admin']), async (req, res) => {
     try {
-        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${req.params.orderId}/cancel`, {
+        const orderId = req.params.orderId;
+        
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/${orderId}/cancel`, {
             method: 'PATCH'
         });
+        
+        if (result.status === 200 && result.data && result.data.success) {
+            try {
+                const orderCancelledEvent = new OrderCancelledEvent(
+                    orderId,
+                    req.body.reason || 'Cancelled by admin/manager',
+                    req.user.id
+                );
+                
+                await eventPublisher.publish(orderCancelledEvent);
+            } catch (eventError) {
+                logger.error('Failed to publish order cancelled event:', eventError);
+            }
+        }
+        
         res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
