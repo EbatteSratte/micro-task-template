@@ -14,7 +14,8 @@
     "opossum": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
     "pino": "^8.15.0",
-    "pino-pretty": "^10.2.0"
+    "pino-pretty": "^10.2.0",
+    "express-rate-limit": "^7.1.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

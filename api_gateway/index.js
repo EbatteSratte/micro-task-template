@@ -4,6 +4,7 @@ const axios = require('axios');
 const CircuitBreaker = require('opossum');
 const jwt = require('jsonwebtoken');
 const pino = require('pino');
+const rateLimit = require('express-rate-limit');
 
 const logger = pino({
     level: process.env.LOG_LEVEL || 'info'
@@ -13,9 +14,33 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+        success: false,
+        error: 'Too many requests from this IP, please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: {
+        success: false,
+        error: 'Too many authentication attempts, please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(generalLimiter);
 
 app.use((req, res, next) => {
     const startTime = Date.now();
@@ -285,7 +310,7 @@ app.get(`${API_VERSION}/users/health`, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/users/register`, async (req, res) => {
+app.post(`${API_VERSION}/users/register`, authLimiter, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/register`, {
             method: 'POST',
@@ -297,7 +322,7 @@ app.post(`${API_VERSION}/users/register`, async (req, res) => {
     }
 });
 
-app.post(`${API_VERSION}/users/login`, async (req, res) => {
+app.post(`${API_VERSION}/users/login`, authLimiter,async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/login`, {
             method: 'POST',
