@@ -100,6 +100,53 @@ function generateJwtForUser(user) {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 }
 
+function createDefaultUsers() {
+    const defaultUsers = [
+        {
+            email: 'customer@example.com',
+            password: 'password123',
+            name: 'Default Customer',
+            roles: [ROLES.CUSTOMER]
+        },
+        {
+            email: 'engineer@example.com',
+            password: 'password123',
+            name: 'Default Engineer',
+            roles: [ROLES.ENGINEER]
+        },
+        {
+            email: 'manager@example.com',
+            password: 'password123',
+            name: 'Default Manager',
+            roles: [ROLES.MANAGER]
+        },
+        {
+            email: 'admin@example.com',
+            password: 'password123',
+            name: 'Default Admin',
+            roles: [ROLES.ADMIN]
+        }
+    ];
+
+    let usersCreated = 0;
+    defaultUsers.forEach(userData => {
+        // Check if user already exists
+        const existingUser = Object.values(fakeUsersDb).find(u => u.email === userData.email);
+        if (!existingUser) {
+            const newUser = createUserModel(userData);
+            fakeUsersDb[newUser.id] = newUser;
+            usersCreated++;
+            console.log(`Created default ${userData.roles[0]} user: ${userData.email}`);
+        }
+    });
+
+    if (usersCreated > 0) {
+        console.log(`✅ Created ${usersCreated} default users`);
+    } else {
+        console.log('📋 All default users already exist');
+    }
+}
+
 app.post('/users/register', (req, res) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -435,4 +482,5 @@ app.delete('/users/:userId', (req, res) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Users service running on port ${PORT}`);
+    createDefaultUsers();
 });
