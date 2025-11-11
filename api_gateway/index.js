@@ -179,6 +179,24 @@ function requireRoles(allowedRoles) {
     };
 }
 
+app.get(`${API_VERSION}/users/status`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/status`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.get(`${API_VERSION}/users/health`, async (req, res) => {
+    try {
+        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/health`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
 app.get(`${API_VERSION}/users/profile`, authenticateJWT, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/profile/${req.user.id}`);
@@ -314,24 +332,6 @@ app.put(`${API_VERSION}/users/:userId`, authenticateJWT, requireRoles(['Admin'])
     }
 });
 
-app.get(`${API_VERSION}/users/status`, async (req, res) => {
-    try {
-        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/status`);
-        res.status(result.status).json(result.data);
-    } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
-    }
-});
-
-app.get(`${API_VERSION}/users/health`, async (req, res) => {
-    try {
-        const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/health`);
-        res.status(result.status).json(result.data);
-    } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
-    }
-});
-
 app.post(`${API_VERSION}/users/register`, authLimiter, async (req, res) => {
     try {
         const result = await usersCircuit.fire(`${USERS_SERVICE_URL}/users/register`, {
@@ -350,6 +350,24 @@ app.post(`${API_VERSION}/users/login`, authLimiter, async (req, res) => {
             method: 'POST',
             data: req.body
         });
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.get(`${API_VERSION}/orders/health`, async (req, res) => {
+    try {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/health`);
+        res.status(result.status).json(result.data);
+    } catch (error) {
+        res.status(500).json({error: 'Internal server error'});
+    }
+});
+
+app.get(`${API_VERSION}/orders/status`, async (req, res) => {
+    try {
+        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/status`);
         res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
@@ -511,24 +529,6 @@ app.put(`${API_VERSION}/orders/:orderId`, authenticateJWT, requireRoles(['Manage
             method: 'PUT',
             data: req.body
         });
-        res.status(result.status).json(result.data);
-    } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
-    }
-});
-
-app.get(`${API_VERSION}/orders/status`, async (req, res) => {
-    try {
-        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/status`);
-        res.status(result.status).json(result.data);
-    } catch (error) {
-        res.status(500).json({error: 'Internal server error'});
-    }
-});
-
-app.get(`${API_VERSION}/orders/health`, async (req, res) => {
-    try {
-        const result = await ordersCircuit.fire(`${ORDERS_SERVICE_URL}/orders/health`);
         res.status(result.status).json(result.data);
     } catch (error) {
         res.status(500).json({error: 'Internal server error'});
